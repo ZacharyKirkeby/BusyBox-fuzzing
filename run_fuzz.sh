@@ -50,13 +50,12 @@ else
     sed -i 's/CONFIG_SH_IS_ASH=y/# CONFIG_SH_IS_ASH is not set/' .config
     sed -i 's/# CONFIG_SH_IS_HUSH is not set/CONFIG_SH_IS_HUSH=y/' .config
 fi
-
 make CC="$CC" -j"$(nproc)"
 
 cd "$ROOT_DIR"
-
 mkdir -p "$OUT_DIR"
-SCRATCH_DIR="/sandbox"
+
+SCRATCH_DIR="/tmp"
 
 mkdir -p "$IN_DIR"
 if [[ -z "$(ls -A "$IN_DIR" 2>/dev/null)" ]]; then
@@ -102,7 +101,6 @@ exec bwrap \
     --dev /dev \
     --proc /proc \
     --tmpfs /dev/shm \
-    --tmpfs /tmp \
     --tmpfs "$SCRATCH_DIR" \
     --chdir "$SCRATCH_DIR" \
     --bind "$OUT_DIR" "$OUT_DIR" \
