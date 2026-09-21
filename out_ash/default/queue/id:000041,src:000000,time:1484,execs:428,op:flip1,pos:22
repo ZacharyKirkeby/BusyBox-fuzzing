@@ -1,3 +1,0 @@
-A="foo"
-B="${A:-bar}"
-ucho "$A-$B"

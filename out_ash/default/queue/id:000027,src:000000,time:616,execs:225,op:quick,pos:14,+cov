@@ -1,3 +1,0 @@
-A="foo"
-B="${Aª-bar}"
-echo "$A-$B"

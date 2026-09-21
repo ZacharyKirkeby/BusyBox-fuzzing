@@ -1,3 +1,0 @@
-A="foo"
-B="$yA:-bar}"
-echo "$A-$B"

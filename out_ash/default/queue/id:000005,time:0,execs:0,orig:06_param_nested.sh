@@ -1,6 +1,0 @@
-A="alpha/beta/gamma"
-B="${A%/*}"
-C="${B#*/}"
-D="${UNDEFINED:-${B:-${A##*b}}}"
-E="${A:+"${B:-nested_default}"}"
-echo "${#A}" "${#D}" "${E}"

@@ -1,7 +1,0 @@
-# environment variables:
-AFL_CUSTOM_INFO_PROGRAM=/home/crack/BusyBox-fuzzing/busybox-ash/busybox_unstripped
-AFL_CUSTOM_INFO_PROGRAM_ARGV=ash @@
-AFL_CUSTOM_INFO_OUT=/home/crack/BusyBox-fuzzing/out_ash/default
-AFL_USE_ASAN=1
-# command line:
-'afl-fuzz' '-i' '/home/crack/BusyBox-fuzzing/in_ash' '-o' '/home/crack/BusyBox-fuzzing/out_ash' '-x' '/home/crack/BusyBox-fuzzing/dict/ash.dict' '-m' 'none' '-t' '500+' '--' '/home/crack/BusyBox-fuzzing/busybox-ash/busybox_unstripped' 'ash' '@@'
