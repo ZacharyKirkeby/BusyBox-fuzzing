@@ -1,2 +1,4 @@
 busybox-ash/*
 busybox-hush/*
+out_ash/*
+out_hush/*
