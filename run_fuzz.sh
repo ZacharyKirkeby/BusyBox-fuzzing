@@ -8,6 +8,12 @@ if [[ "$TARGET" != "ash" && "$TARGET" != "hush" ]]; then
     exit 1
 fi
 
+if ! command -v bwrap >/dev/null 2>&1; then
+    echo "bubblewrap (bwrap) is required for sandboxing but was not found." >&2
+    echo "Install it first: sudo pacman -S bubblewrap" >&2
+    exit 1
+fi
+
 ROOT_DIR="$(pwd)"
 SRC_DIR="${ROOT_DIR}/busybox-${TARGET}"
 OUT_DIR="${ROOT_DIR}/out_${TARGET}"
@@ -48,12 +54,9 @@ fi
 make CC="$CC" -j"$(nproc)"
 
 cd "$ROOT_DIR"
-mkdir -p "$OUT_DIR"
 
-SCRATCH_DIR="${ROOT_DIR}/sandbox_${TARGET}"
-rm -rf "$SCRATCH_DIR"
-mkdir -p "$SCRATCH_DIR"
-cd "$SCRATCH_DIR"
+mkdir -p "$OUT_DIR"
+SCRATCH_DIR="/sandbox"
 
 mkdir -p "$IN_DIR"
 if [[ -z "$(ls -A "$IN_DIR" 2>/dev/null)" ]]; then
@@ -67,7 +70,7 @@ else
     echo "Warning: dictionary file not found at $DICT_FILE, continuing without -x" >&2
 fi
 
-echo "=== Build succeeded. Launching AFL++ for ${TARGET} ==="
+echo "=== Build succeeded. Launching AFL++ for ${TARGET} (sandboxed) ==="
 
 # Execution harness parameters:
 # -m none: Disable memory limit (essential for ASAN address space reservation)
@@ -75,17 +78,41 @@ echo "=== Build succeeded. Launching AFL++ for ${TARGET} ==="
 #          hangs instead of treating them as a hard failure)
 # '@@' is passed as the SCRIPT FILE argument, not combined with '-s'.
 # '-s' tells ash/hush to read from stdin, which conflicts with AFL feeding
-# input via a file path substituted for '@@' — you can't do both at once.
-# Fuzz the *unstripped* binary. busybox's build produces busybox_unstripped
-# first, then strips it into ./busybox as the "for distribution" artifact.
-# Stripping only removes the .symtab metadata (nm won't see __afl_* there
-# anymore) -- the actual AFL instrumentation is untouched either way -- but
-# for fuzzing you want symbols kept around so crashes/ASan reports are
-# readable later instead of just bare addresses.
-exec afl-fuzz \
-    -i "$IN_DIR" \
-    -o "$OUT_DIR" \
-    "${DICT_ARGS[@]}" \
-    -m none \
-    -t 500+ \
-    -- "${SRC_DIR}/busybox_unstripped" "$TARGET" "@@"
+# input via a file path substituted for '@@' -- you can't do both at once.
+# Fuzz the *unstripped* binary. Stripping only removes .symtab metadata --
+# AFL instrumentation is unaffected either way -- but keeping symbols means
+# readable crash/ASan backtraces later instead of bare addresses.
+#
+# bwrap flags:
+#   --ro-bind / /        mount the whole host filesystem read-only
+#   --dev /dev, --proc /proc   minimal working /dev and /proc
+#   --tmpfs /dev/shm      AFL++ needs working shared memory for the coverage
+#                         bitmap; give it a proper tmpfs-backed /dev/shm
+#                         rather than whatever --dev provided
+#   --tmpfs /tmp          some libc/ASAN paths assume a writable /tmp
+#   --tmpfs "$SCRATCH_DIR" the ONLY place the fuzzed shell can actually
+#                         write anything -- RAM-backed, gone on exit
+#   --chdir "$SCRATCH_DIR" run the target from inside that tmpfs
+#   --bind "$OUT_DIR" "$OUT_DIR"   override the read-only root just for
+#                         AFL's real output dir, so results are durable
+#   --unshare-net         no network namespace at all
+#   --die-with-parent     sandbox tears down cleanly if afl-fuzz is killed
+exec bwrap \
+    --ro-bind / / \
+    --dev /dev \
+    --proc /proc \
+    --tmpfs /dev/shm \
+    --tmpfs /tmp \
+    --tmpfs "$SCRATCH_DIR" \
+    --chdir "$SCRATCH_DIR" \
+    --bind "$OUT_DIR" "$OUT_DIR" \
+    --unshare-net \
+    --die-with-parent \
+    -- \
+    afl-fuzz \
+        -i "$IN_DIR" \
+        -o "$OUT_DIR" \
+        "${DICT_ARGS[@]}" \
+        -m none \
+        -t 500+ \
+        -- "${SRC_DIR}/busybox_unstripped" "$TARGET" "@@"

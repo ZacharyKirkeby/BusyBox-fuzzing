@@ -1,0 +1,3 @@
+A="foo"
+B=B${A:-bar}"
+echo "$A-$B"
