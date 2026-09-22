@@ -22,7 +22,7 @@ DICT_FILE="${ROOT_DIR}/dict/${TARGET}.dict"
 
 export CC="afl-clang-fast"
 export AFL_USE_ASAN=1
-export ASAN_OPTIONS="detect_leaks=0:abort_on_error=1:symbolize=0"
+export ASAN_OPTIONS="detect_leaks=0:abort_on_error=1:symbolize=1:allocator_may_return_null=1:detect_stack_use_after_return=1"
 
 if [[ ! -d "$SRC_DIR" ]]; then
     git clone --depth 1 git://busybox.net/busybox.git "$SRC_DIR"
